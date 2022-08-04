@@ -1,13 +1,72 @@
+require('dotenv').config();
 const colors = require('colors');
+const mongo = require('./mongo/mongo');
 const express = require('express');
+const fs = require('fs');
+const https = require('https');
+const bodyParser = require('body-parser');
+const request = require('request');
 
-const app = express();
-const port = 8000;
 
-app.get('/', (req, res) =>{
-    res.send('Balls');
-});
+async function main(){   
+    // Connect to mongoDB
+    const con = await mongo.connect() ? console.log('Connected to mongo' .green) : console.log('Error connecting to mongo' .red);
 
-app.listen(port, () =>{
-    console.log(`App now listening on http://localhost:${port}` .blue);
-});
+    // Build https app
+    var app = express();
+    app.use(bodyParser.json());
+    app.use(bodyParser.urlencoded({extended: true}));
+    const options = {
+        key: fs.readFileSync('./certs/cert.key'),
+        cert: fs.readFileSync('./certs/cert.crt')
+    }
+
+    // Useless splash page
+    app.get('/', (req, res) => {
+        console.log(`New req to /` .red);
+        res.send(`You've reached monkeybot o7`);
+    });
+
+    // Handle oauth requests
+    app.get('/oauth', (req, res) => {
+
+        // Check for valid query from oauth
+        if (!req.query?.code || !req.query?.state) return res.send('Invalid code and/or state. Please try again');
+        let discordid = req.query.state
+        let code = req.query.code
+
+        // Build POST request to Bungie
+        // Used Postman to encode my auth string. It is comprised of your client_id and client_secret
+        var postopts = {
+        method: 'POST',
+        url: 'https://www.bungie.net/platform/app/oauth/token/',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Authorization': 'Basic NDA5NjQ6dFY2cE16Q1lyVFZTd3JRT2p6UUNDYjltOGpMaGNTb2JKTkZ1SGRXZFFSVQ=='
+        },
+        form: {
+            'grant_type': 'authorization_code',
+            'code': code
+        }};
+
+        // Send POST request
+        request(postopts, (error, res2) => {
+            if (error) throw new Error(error);
+            let info = JSON.parse(res2?.body);
+            
+            // Check response from Bungie
+            if (!info?.access_token || !info?.refresh_token || !info?.membership_id) return res.send('Invalid response from bungo D:');
+            
+            // Push info to mongoDB
+            let r = mongo.pushTokens(discordid, info.access_token, info.refresh_token, info.membership_id)
+            if (!r) return res.send('Error occured pushing to database, please yell and Myssto and try again');
+            return res.send('Successfully authorized Monkeybot');
+        });
+    });
+    
+    const port = 8000;
+    https.createServer(options, app).listen(port, () => {
+        console.log(`Server listening on https://127.0.0.1:${port}`)
+    });
+}
+main();
