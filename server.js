@@ -1,5 +1,6 @@
 require('dotenv').config();
 const { connect, pushTokens} = require('./mongo/mongo');
+const colors = require('colors');
 const express = require('express');
 const fs = require('fs');
 const https = require('https');
@@ -23,7 +24,6 @@ async function main(){
 
     // Useless splash page
     app.get('/', (req, res) => {
-        console.log(`New req to /` .red);
         res.send(`You've reached monkeybot o7`);
     });
 
