@@ -1,6 +1,5 @@
 require('dotenv').config();
-const colors = require('colors');
-const mongo = require('./mongo/mongo');
+const { connect, pushTokens} = require('./mongo/mongo');
 const express = require('express');
 const fs = require('fs');
 const https = require('https');
@@ -10,8 +9,8 @@ const request = require('request');
 
 async function main(){   
 
-    // Connect to mongoDB
-    const con = await mongo.connect() ? console.log('Connected to mongo' .green) : console.log('Error connecting to mongo' .red);
+    // Await connection to mongoDB
+    const con = await connect() ? console.log('Connected to mongo' .green) : console.log('Error connecting to mongo' .red);
 
     // Build https app
     var app = express();
@@ -61,7 +60,7 @@ async function main(){
             if (!info?.access_token || !info?.refresh_token || !info?.membership_id) return res.send('Invalid response from bungo D:');
             
             // Push info to mongoDB
-            let r = mongo.pushTokens(discordid, info.access_token, info.refresh_token, info.membership_id)
+            let r = pushTokens(discordid, info.access_token, info.refresh_token, info.membership_id)
             if (!r) return res.send('Error occured pushing to database, please yell and Myssto and try again');
             return res.send('Successfully authorized Monkeybot');
         });
