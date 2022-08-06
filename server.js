@@ -9,6 +9,7 @@ const request = require('request');
 
 
 async function main(){   
+
     // Connect to mongoDB
     const con = await mongo.connect() ? console.log('Connected to mongo' .green) : console.log('Error connecting to mongo' .red);
 
@@ -36,13 +37,15 @@ async function main(){
         let code = req.query.code
 
         // Build POST request to Bungie
-        // Used Postman to encode my auth string. It is comprised of your client_id and client_secret
+        // Auth string locally encoded using env vals. It is comprised of your client_id and client_secret
+        // btoa() is a deprecated function but it is simple and works
+        const auth = btoa(`${process.env.CLIENT_ID}:${process.env.CLIENT_SECRET}`);
         var postopts = {
         method: 'POST',
         url: 'https://www.bungie.net/platform/app/oauth/token/',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
-            'Authorization': 'Basic NDA5NjQ6dFY2cE16Q1lyVFZTd3JRT2p6UUNDYjltOGpMaGNTb2JKTkZ1SGRXZFFSVQ=='
+            'Authorization': `Basic ${auth}`
         },
         form: {
             'grant_type': 'authorization_code',
